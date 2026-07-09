@@ -8,7 +8,7 @@ const ctx = canvas.getContext("2d");
 const spriteSheet = new Image();
 
 // Diz onde está a imagem
-spriteSheet.src = "assets/spritesheet.png";
+spriteSheet.src = "spritesheet.PNG-1.png.png";
 
 // Quando a imagem terminar de carregar...
 spriteSheet.onload = function () {
