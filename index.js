@@ -25,9 +25,9 @@ const passaro = {
     largura: 100,
     altura: 52,
 
-    velocidadeY: -2,
+    velocidadeY: 0,
     gravidade: 0.4,
-    forcaDoPulo: -9,
+    forcaDoPulo: -5,
 
     frame: 0,
     tempoDoFrame: 0,
