@@ -1,133 +1,253 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// Carrega a sprite sheet
 const spriteSheet = new Image();
 spriteSheet.src = "spritesheet.PNG-1.png.png";
 
-// -----------------------------
-// CONFIGURAÇÕES GERAIS
-// -----------------------------
+// =====================================================
+// ESTADOS DO JOGO
+// =====================================================
 
-const chaoY = canvas.height - 35;
+const ESTADO = {
+    MENU: "menu",
+    JOGANDO: "jogando",
+    PAUSADO: "pausado",
+    GAME_OVER: "game_over"
+};
 
-let jogoAcabou = false;
+let estadoAtual = ESTADO.MENU;
+
 let pontuacao = 0;
+let recorde = Number(localStorage.getItem("recordePassaro")) || 0;
 
-// -----------------------------
+let pedras = [];
+let nuvens = [];
+
+let tempoParaPedra = 80;
+let tempoParaNuvem = 20;
+
+const chaoY = canvas.height - 28;
+
+// =====================================================
 // PÁSSARO
-// -----------------------------
+// =====================================================
 
 const passaro = {
-    x: 80,
+    x: 90,
     y: 0,
 
     largura: 100,
     altura: 52,
 
     velocidadeY: 3,
-    gravidade: 0.4,
+    gravidade: 0.5,
     forcaDoPulo: -12,
 
-    frame: 0,
-    tempoDoFrame: 0,
     noChao: true
 };
 
-passaro.y = chaoY - passaro.altura;
+function colocarPassaroNoChao() {
+    passaro.y = chaoY - passaro.altura;
+    passaro.velocidadeY = 0;
+    passaro.noChao = true;
+}
 
-// Coordenadas dos dois pássaros na sprite sheet
-const framesPassaro = [
-    {
-        x: 3,
-        y: 84,
-        largura: 68,
-        altura: 35
-    },
-    {
-        x: 122,
-        y: 93,
-        largura: 65,
-        altura: 35
-    }
-];
+colocarPassaroNoChao();
 
-// -----------------------------
-// PEDRAS
-// -----------------------------
+// =====================================================
+// BOTÕES DA INTERFACE
+// =====================================================
 
-let pedras = [];
-let tempoParaPedra = 0;
+const botaoJogar = {
+    x: canvas.width / 2 - 100,
+    y: 170,
+    largura: 200,
+    altura: 55
+};
+
+const botaoReiniciar = {
+    x: canvas.width / 2 - 120,
+    y: 190,
+    largura: 240,
+    altura: 55
+};
+
+const botaoPausa = {
+    x: canvas.width - 105,
+    y: 15,
+    largura: 85,
+    altura: 35
+};
+
+// =====================================================
+// CRIAÇÃO DOS OBJETOS
+// =====================================================
 
 function criarPedra() {
-    const largura = 76;
-    const altura = 36;
+    const largura = 68;
+    const altura = 35;
 
     pedras.push({
-        x: canvas.width,
+        x: canvas.width + 10,
         y: chaoY - altura,
-
-        largura: largura,
-        altura: altura,
-
-        velocidade: 6
+        largura,
+        altura,
+        velocidade: 6 + Math.min(pontuacao / 500, 3)
     });
 }
-
-// -----------------------------
-// NUVENS
-// -----------------------------
-
-let nuvens = [];
-let tempoParaNuvem = 0;
 
 function criarNuvem() {
-    const nuvemGrande = Math.random() > 0.5;
+    const grande = Math.random() > 0.5;
 
     nuvens.push({
-        x: canvas.width,
-        y: 25 + Math.random() * 90,
+        x: canvas.width + 10,
+        y: 35 + Math.random() * 100,
 
-        tipo: nuvemGrande ? "grande" : "pequena",
+        tipo: grande ? "grande" : "pequena",
 
-        largura: nuvemGrande ? 72 : 52,
-        altura: nuvemGrande ? 36 : 24,
+        largura: grande ? 70 : 45,
+        altura: grande ? 34 : 22,
 
-        velocidade: 1 + Math.random()
+        velocidade: 0.6 + Math.random() * 0.8
     });
 }
 
-// -----------------------------
-// CONTROLE
-// -----------------------------
+// =====================================================
+// CONTROLES
+// =====================================================
 
 document.addEventListener("keydown", function (evento) {
-    if (evento.code !== "Space") {
-        return;
+    if (evento.code === "Space") {
+        evento.preventDefault();
+
+        if (estadoAtual === ESTADO.MENU) {
+            iniciarJogo();
+            return;
+        }
+
+        if (estadoAtual === ESTADO.GAME_OVER) {
+            iniciarJogo();
+            return;
+        }
+
+        if (
+            estadoAtual === ESTADO.JOGANDO &&
+            passaro.noChao
+        ) {
+            passaro.velocidadeY = passaro.forcaDoPulo;
+            passaro.noChao = false;
+        }
     }
 
-    evento.preventDefault();
-
-    if (jogoAcabou) {
-        reiniciarJogo();
-        return;
-    }
-
-    if (passaro.noChao) {
-        passaro.velocidadeY = passaro.forcaDoPulo;
-        passaro.noChao = false;
+    if (evento.code === "KeyP") {
+        alternarPausa();
     }
 });
 
-// -----------------------------
-// ATUALIZAÇÃO DO JOGO
-// -----------------------------
+canvas.addEventListener("click", function (evento) {
+    const retangulo = canvas.getBoundingClientRect();
+
+    const escalaX = canvas.width / retangulo.width;
+    const escalaY = canvas.height / retangulo.height;
+
+    const mouseX =
+        (evento.clientX - retangulo.left) * escalaX;
+
+    const mouseY =
+        (evento.clientY - retangulo.top) * escalaY;
+
+    if (
+        estadoAtual === ESTADO.MENU &&
+        pontoDentroDoBotao(mouseX, mouseY, botaoJogar)
+    ) {
+        iniciarJogo();
+        return;
+    }
+
+    if (
+        estadoAtual === ESTADO.GAME_OVER &&
+        pontoDentroDoBotao(mouseX, mouseY, botaoReiniciar)
+    ) {
+        iniciarJogo();
+        return;
+    }
+
+    if (
+        estadoAtual === ESTADO.JOGANDO &&
+        pontoDentroDoBotao(mouseX, mouseY, botaoPausa)
+    ) {
+        estadoAtual = ESTADO.PAUSADO;
+        return;
+    }
+
+    if (
+        estadoAtual === ESTADO.PAUSADO &&
+        pontoDentroDoBotao(mouseX, mouseY, botaoPausa)
+    ) {
+        estadoAtual = ESTADO.JOGANDO;
+    }
+});
+
+function pontoDentroDoBotao(x, y, botao) {
+    return (
+        x >= botao.x &&
+        x <= botao.x + botao.largura &&
+        y >= botao.y &&
+        y <= botao.y + botao.altura
+    );
+}
+
+// =====================================================
+// INÍCIO, PAUSA E FIM
+// =====================================================
+
+function iniciarJogo() {
+    pontuacao = 0;
+
+    pedras = [];
+    nuvens = [];
+
+    tempoParaPedra = 80;
+    tempoParaNuvem = 20;
+
+    colocarPassaroNoChao();
+
+    estadoAtual = ESTADO.JOGANDO;
+}
+
+function alternarPausa() {
+    if (estadoAtual === ESTADO.JOGANDO) {
+        estadoAtual = ESTADO.PAUSADO;
+    } else if (estadoAtual === ESTADO.PAUSADO) {
+        estadoAtual = ESTADO.JOGANDO;
+    }
+}
+
+function encerrarJogo() {
+    estadoAtual = ESTADO.GAME_OVER;
+
+    const pontosFinais = Math.floor(pontuacao / 10);
+
+    if (pontosFinais > recorde) {
+        recorde = pontosFinais;
+
+        localStorage.setItem(
+            "recordePassaro",
+            recorde
+        );
+    }
+}
+
+// =====================================================
+// ATUALIZAÇÕES
+// =====================================================
 
 function atualizarPassaro() {
     passaro.velocidadeY += passaro.gravidade;
     passaro.y += passaro.velocidadeY;
 
-    const posicaoDoChao = chaoY - passaro.altura;
+    const posicaoDoChao =
+        chaoY - passaro.altura;
 
     if (passaro.y >= posicaoDoChao) {
         passaro.y = posicaoDoChao;
@@ -139,14 +259,6 @@ function atualizarPassaro() {
         passaro.y = 0;
         passaro.velocidadeY = 0;
     }
-
-    // Troca a imagem das asas
-    passaro.tempoDoFrame++;
-
-    if (passaro.tempoDoFrame >= 10) {
-        passaro.frame = passaro.frame === 0 ? 1 : 0;
-        passaro.tempoDoFrame = 0;
-    }
 }
 
 function atualizarPedras() {
@@ -155,8 +267,8 @@ function atualizarPedras() {
     if (tempoParaPedra <= 0) {
         criarPedra();
 
-        // Intervalo aleatório entre as pedras
-        tempoParaPedra = 90 + Math.random() * 70;
+        tempoParaPedra =
+            95 + Math.random() * 75;
     }
 
     for (const pedra of pedras) {
@@ -174,7 +286,8 @@ function atualizarNuvens() {
     if (tempoParaNuvem <= 0) {
         criarNuvem();
 
-        tempoParaNuvem = 80 + Math.random() * 100;
+        tempoParaNuvem =
+            100 + Math.random() * 130;
     }
 
     for (const nuvem of nuvens) {
@@ -187,17 +300,33 @@ function atualizarNuvens() {
 }
 
 function verificarColisoes() {
-    // Caixa de colisão um pouco menor que o desenho
-    const passaroEsquerda = passaro.x + 15;
-    const passaroDireita = passaro.x + passaro.largura - 15;
-    const passaroTopo = passaro.y + 8;
-    const passaroBase = passaro.y + passaro.altura - 5;
+    const margemPassaroX = 14;
+    const margemPassaroY = 8;
+
+    const passaroEsquerda =
+        passaro.x + margemPassaroX;
+
+    const passaroDireita =
+        passaro.x +
+        passaro.largura -
+        margemPassaroX;
+
+    const passaroTopo =
+        passaro.y + margemPassaroY;
+
+    const passaroBase =
+        passaro.y +
+        passaro.altura -
+        margemPassaroY;
 
     for (const pedra of pedras) {
-        const pedraEsquerda = pedra.x + 8;
-        const pedraDireita = pedra.x + pedra.largura - 8;
-        const pedraTopo = pedra.y + 5;
-        const pedraBase = pedra.y + pedra.altura;
+        const pedraEsquerda = pedra.x + 7;
+        const pedraDireita =
+            pedra.x + pedra.largura - 7;
+
+        const pedraTopo = pedra.y + 4;
+        const pedraBase =
+            pedra.y + pedra.altura;
 
         const bateu =
             passaroDireita > pedraEsquerda &&
@@ -206,55 +335,94 @@ function verificarColisoes() {
             passaroTopo < pedraBase;
 
         if (bateu) {
-            jogoAcabou = true;
+            encerrarJogo();
+            return;
         }
     }
 }
 
 function atualizar() {
-    if (jogoAcabou) {
+    if (estadoAtual !== ESTADO.JOGANDO) {
         return;
     }
 
     atualizarPassaro();
-    atualizarNuvens();
     atualizarPedras();
+    atualizarNuvens();
     verificarColisoes();
 
     pontuacao++;
 }
 
-// -----------------------------
-// DESENHO
-// -----------------------------
+// =====================================================
+// DESENHOS DO JOGO
+// =====================================================
+
+function desenharFundo() {
+    const gradiente = ctx.createLinearGradient(
+        0,
+        0,
+        0,
+        canvas.height
+    );
+
+    gradiente.addColorStop(0, "#bfe8ff");
+    gradiente.addColorStop(1, "#ffffff");
+
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+}
+
+function desenharChao() {
+    ctx.fillStyle = "#c8b38a";
+
+    ctx.fillRect(
+        0,
+        chaoY,
+        canvas.width,
+        canvas.height - chaoY
+    );
+
+    ctx.strokeStyle = "#3c3327";
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.moveTo(0, chaoY);
+    ctx.lineTo(canvas.width, chaoY);
+    ctx.stroke();
+}
 
 function desenharNuvens() {
     for (const nuvem of nuvens) {
-        let recorte;
+        let recorteX;
+        let recorteY;
+        let recorteLargura;
+        let recorteAltura;
 
         if (nuvem.tipo === "grande") {
-            recorte = {
-                x: 214,
-                y: 110,
-                largura: 18,
-                altura: 9
-            };
+            recorteX = 211;
+            recorteY = 109;
+            recorteLargura = 22;
+            recorteAltura = 12;
         } else {
-            recorte = {
-                x: 202,
-                y: 100,
-                largura: 13,
-                altura: 6
-            };
+            recorteX = 201;
+            recorteY = 99;
+            recorteLargura = 15;
+            recorteAltura = 9;
         }
 
         ctx.drawImage(
             spriteSheet,
 
-            recorte.x,
-            recorte.y,
-            recorte.largura,
-            recorte.altura,
+            recorteX,
+            recorteY,
+            recorteLargura,
+            recorteAltura,
 
             nuvem.x,
             nuvem.y,
@@ -269,10 +437,10 @@ function desenharPedras() {
         ctx.drawImage(
             spriteSheet,
 
-            70,
+            73,
             94,
-            38,
-            18,
+            36,
+            19,
 
             pedra.x,
             pedra.y,
@@ -283,98 +451,341 @@ function desenharPedras() {
 }
 
 function desenharPassaro() {
-    const frameAtual = framesPassaro[passaro.frame];
+    ctx.save();
+
+    const centroX =
+        passaro.x + passaro.largura / 2;
+
+    const centroY =
+        passaro.y + passaro.altura / 2;
+
+    ctx.translate(centroX, centroY);
+
+    let inclinacao = 0;
+
+    if (!passaro.noChao) {
+        inclinacao =
+            Math.max(
+                -0.18,
+                Math.min(
+                    0.18,
+                    passaro.velocidadeY * 0.015
+                )
+            );
+    }
+
+    ctx.rotate(inclinacao);
 
     ctx.drawImage(
         spriteSheet,
 
-        frameAtual.x,
-        frameAtual.y,
-        frameAtual.largura,
-        frameAtual.altura,
+        3,
+        84,
+        67,
+        35,
 
-        passaro.x,
-        passaro.y,
+        -passaro.largura / 2,
+        -passaro.altura / 2,
+
         passaro.largura,
         passaro.altura
     );
+
+    ctx.restore();
 }
 
-function desenharChao() {
-    ctx.beginPath();
-    ctx.moveTo(0, chaoY);
-    ctx.lineTo(canvas.width, chaoY);
+// =====================================================
+// INTERFACE
+// =====================================================
+
+function desenharPainelSuperior() {
+    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+
+    ctx.fillRect(
+        12,
+        12,
+        230,
+        46
+    );
+
+    ctx.strokeStyle = "#1e3550";
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "black";
-    ctx.stroke();
-}
 
-function desenharPontuacao() {
-    ctx.font = "24px Arial";
-    ctx.fillStyle = "black";
+    ctx.strokeRect(
+        12,
+        12,
+        230,
+        46
+    );
+
+    ctx.fillStyle = "#17283b";
     ctx.textAlign = "left";
-    ctx.fillText("Pontos: " + Math.floor(pontuacao / 10), 20, 30);
+    ctx.font = "bold 19px Arial";
+
+    ctx.fillText(
+        "Pontos: " +
+        Math.floor(pontuacao / 10),
+        25,
+        41
+    );
+
+    ctx.font = "16px Arial";
+
+    ctx.fillText(
+        "Recorde: " + recorde,
+        135,
+        40
+    );
 }
 
-function desenharGameOver() {
-    if (!jogoAcabou) {
-        return;
-    }
+function desenharBotao(botao, texto) {
+    ctx.fillStyle = "#195dba";
 
-    ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(
+        botao.x,
+        botao.y,
+        botao.largura,
+        botao.altura
+    );
 
-    ctx.fillStyle = "black";
+    ctx.strokeStyle = "#092b5c";
+    ctx.lineWidth = 4;
+
+    ctx.strokeRect(
+        botao.x,
+        botao.y,
+        botao.largura,
+        botao.altura
+    );
+
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 22px Arial";
+
+    ctx.fillText(
+        texto,
+        botao.x + botao.largura / 2,
+        botao.y + botao.altura / 2
+    );
+
+    ctx.textBaseline = "alphabetic";
+}
+
+function desenharBotaoPausa() {
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+
+    ctx.fillRect(
+        botaoPausa.x,
+        botaoPausa.y,
+        botaoPausa.largura,
+        botaoPausa.altura
+    );
+
+    ctx.strokeStyle = "#17283b";
+    ctx.lineWidth = 2;
+
+    ctx.strokeRect(
+        botaoPausa.x,
+        botaoPausa.y,
+        botaoPausa.largura,
+        botaoPausa.altura
+    );
+
+    ctx.fillStyle = "#17283b";
+    ctx.font = "bold 15px Arial";
+    ctx.textAlign = "center";
+
+    const texto =
+        estadoAtual === ESTADO.PAUSADO
+            ? "CONTINUAR"
+            : "PAUSAR";
+
+    ctx.fillText(
+        texto,
+        botaoPausa.x +
+        botaoPausa.largura / 2,
+        botaoPausa.y + 23
+    );
+}
+
+function desenharMenu() {
+    ctx.fillStyle = "rgba(255,255,255,0.82)";
+
+    ctx.fillRect(
+        130,
+        35,
+        canvas.width - 260,
+        215
+    );
+
+    ctx.strokeStyle = "#17283b";
+    ctx.lineWidth = 4;
+
+    ctx.strokeRect(
+        130,
+        35,
+        canvas.width - 260,
+        215
+    );
+
+    ctx.fillStyle = "#1255ae";
     ctx.textAlign = "center";
 
     ctx.font = "bold 42px Arial";
+
     ctx.fillText(
-        "GAME OVER",
+        "PÁSSARO PLANADOR",
         canvas.width / 2,
-        canvas.height / 2 - 15
+        90
     );
 
-    ctx.font = "20px Arial";
+    ctx.fillStyle = "#17283b";
+    ctx.font = "19px Arial";
+
     ctx.fillText(
-        "Aperte Espaço para reiniciar",
+        "Pule sobre as pedras e bata seu recorde!",
         canvas.width / 2,
-        canvas.height / 2 + 30
+        125
+    );
+
+    ctx.font = "16px Arial";
+
+    ctx.fillText(
+        "Espaço: pular  •  P: pausar",
+        canvas.width / 2,
+        150
+    );
+
+    desenharBotao(
+        botaoJogar,
+        "JOGAR"
+    );
+
+    ctx.font = "14px Arial";
+    ctx.fillStyle = "#405267";
+
+    ctx.fillText(
+        "Recorde atual: " + recorde,
+        canvas.width / 2,
+        245
     );
 }
 
-function desenhar() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function desenharPausa() {
+    ctx.fillStyle = "rgba(10, 20, 35, 0.62)";
 
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.font = "bold 48px Arial";
+
+    ctx.fillText(
+        "PAUSADO",
+        canvas.width / 2,
+        canvas.height / 2
+    );
+
+    ctx.font = "20px Arial";
+
+    ctx.fillText(
+        "Aperte P ou clique em Continuar",
+        canvas.width / 2,
+        canvas.height / 2 + 38
+    );
+}
+
+function desenharGameOver() {
+    ctx.fillStyle = "rgba(10, 20, 35, 0.72)";
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.font = "bold 45px Arial";
+
+    ctx.fillText(
+        "GAME OVER",
+        canvas.width / 2,
+        85
+    );
+
+    ctx.font = "22px Arial";
+
+    ctx.fillText(
+        "Pontuação: " +
+        Math.floor(pontuacao / 10),
+        canvas.width / 2,
+        125
+    );
+
+    ctx.fillText(
+        "Recorde: " + recorde,
+        canvas.width / 2,
+        155
+    );
+
+    desenharBotao(
+        botaoReiniciar,
+        "JOGAR NOVAMENTE"
+    );
+
+    ctx.font = "15px Arial";
+
+    ctx.fillText(
+        "Você também pode apertar Espaço",
+        canvas.width / 2,
+        270
+    );
+}
+
+// =====================================================
+// DESENHO PRINCIPAL
+// =====================================================
+
+function desenhar() {
+    desenharFundo();
     desenharNuvens();
     desenharChao();
     desenharPedras();
     desenharPassaro();
-    desenharPontuacao();
-    desenharGameOver();
+
+    if (
+        estadoAtual === ESTADO.JOGANDO ||
+        estadoAtual === ESTADO.PAUSADO
+    ) {
+        desenharPainelSuperior();
+        desenharBotaoPausa();
+    }
+
+    if (estadoAtual === ESTADO.MENU) {
+        desenharMenu();
+    }
+
+    if (estadoAtual === ESTADO.PAUSADO) {
+        desenharPausa();
+        desenharBotaoPausa();
+    }
+
+    if (estadoAtual === ESTADO.GAME_OVER) {
+        desenharGameOver();
+    }
 }
 
-// -----------------------------
-// REINÍCIO
-// -----------------------------
-
-function reiniciarJogo() {
-    jogoAcabou = false;
-    pontuacao = 0;
-
-    pedras = [];
-    nuvens = [];
-
-    tempoParaPedra = 60;
-    tempoParaNuvem = 20;
-
-    passaro.y = chaoY - passaro.altura;
-    passaro.velocidadeY = 0;
-    passaro.noChao = true;
-}
-
-// -----------------------------
-// LOOP PRINCIPAL
-// -----------------------------
+// =====================================================
+// LOOP
+// =====================================================
 
 function loopDoJogo() {
     atualizar();
@@ -384,10 +795,11 @@ function loopDoJogo() {
 }
 
 spriteSheet.onload = function () {
-    reiniciarJogo();
     loopDoJogo();
 };
 
 spriteSheet.onerror = function () {
-    console.error("Não foi possível carregar a sprite sheet.");
+    console.error(
+        "Não foi possível carregar a sprite sheet."
+    );
 };
