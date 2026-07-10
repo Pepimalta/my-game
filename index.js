@@ -17,14 +17,15 @@ spriteSheet.onload = function () {
 
     // Desenha a sprite sheet no canvas
     ctx.drawImage(
-        spriteSheet,
+    spriteSheet,
 
-        0, 0,       // início do recorte na imagem
-        250, 250,   // tamanho do recorte
+    0, 75,       // começo do recorte (x, y)
+    70, 55,      // largura e altura do pássaro
 
-        80, 40,     // posição no canvas
-        125, 125    // tamanho desenhado
-    );
+    80, 120,     // posição na tela
+    140, 110     // tamanho desenhado
+);
+    
 };
 
 // Mostra um erro no console se a imagem não carregar
