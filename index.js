@@ -26,6 +26,12 @@ let nuvens = [];
 let tempoParaPedra = 80;
 let tempoParaNuvem = 20;
 
+// Velocidade geral do jogo
+let velocidadeJogo = 6;
+
+const velocidadeInicial = 6;
+const velocidadeMaxima = 14;
+
 const chaoY = canvas.height - 28;
 
 // =====================================================
@@ -55,7 +61,7 @@ function colocarPassaroNoChao() {
 colocarPassaroNoChao();
 
 // =====================================================
-// BOTÕES DA INTERFACE
+// BOTÕES
 // =====================================================
 
 const botaoJogar = {
@@ -90,9 +96,8 @@ function criarPedra() {
     pedras.push({
         x: canvas.width + 10,
         y: chaoY - altura,
-        largura,
-        altura,
-        velocidade: 6 + Math.min(pontuacao / 500, 3)
+        largura: largura,
+        altura: altura
     });
 }
 
@@ -108,7 +113,8 @@ function criarNuvem() {
         largura: grande ? 70 : 45,
         altura: grande ? 34 : 22,
 
-        velocidade: 0.6 + Math.random() * 0.8
+        // Cada nuvem tem uma pequena variação própria
+        multiplicadorVelocidade: 0.08 + Math.random() * 0.08
     });
 }
 
@@ -203,6 +209,7 @@ function pontoDentroDoBotao(x, y, botao) {
 
 function iniciarJogo() {
     pontuacao = 0;
+    velocidadeJogo = velocidadeInicial;
 
     pedras = [];
     nuvens = [];
@@ -239,6 +246,33 @@ function encerrarJogo() {
 }
 
 // =====================================================
+// ATUALIZAÇÃO DA VELOCIDADE
+// =====================================================
+
+function atualizarVelocidade() {
+    const pontosAtuais = pontuacao / 10;
+
+    /*
+        A velocidade aumenta 1 ponto
+        a cada 100 pontos do jogador.
+
+        0 pontos    = velocidade 6
+        100 pontos  = velocidade 7
+        200 pontos  = velocidade 8
+        300 pontos  = velocidade 9
+        ...
+        máximo      = velocidade 14
+    */
+
+    velocidadeJogo =
+        velocidadeInicial + pontosAtuais / 100;
+
+    if (velocidadeJogo > velocidadeMaxima) {
+        velocidadeJogo = velocidadeMaxima;
+    }
+}
+
+// =====================================================
 // ATUALIZAÇÕES
 // =====================================================
 
@@ -267,12 +301,16 @@ function atualizarPedras() {
     if (tempoParaPedra <= 0) {
         criarPedra();
 
+        /*
+            Mantém um espaço razoável entre as pedras,
+            mesmo quando o jogo fica mais rápido.
+        */
         tempoParaPedra =
             95 + Math.random() * 75;
     }
 
     for (const pedra of pedras) {
-        pedra.x -= pedra.velocidade;
+        pedra.x -= velocidadeJogo;
     }
 
     pedras = pedras.filter(function (pedra) {
@@ -291,7 +329,9 @@ function atualizarNuvens() {
     }
 
     for (const nuvem of nuvens) {
-        nuvem.x -= nuvem.velocidade;
+        nuvem.x -=
+            velocidadeJogo *
+            nuvem.multiplicadorVelocidade;
     }
 
     nuvens = nuvens.filter(function (nuvem) {
@@ -321,10 +361,12 @@ function verificarColisoes() {
 
     for (const pedra of pedras) {
         const pedraEsquerda = pedra.x + 7;
+
         const pedraDireita =
             pedra.x + pedra.largura - 7;
 
         const pedraTopo = pedra.y + 4;
+
         const pedraBase =
             pedra.y + pedra.altura;
 
@@ -346,12 +388,13 @@ function atualizar() {
         return;
     }
 
+    pontuacao++;
+
+    atualizarVelocidade();
     atualizarPassaro();
     atualizarPedras();
     atualizarNuvens();
     verificarColisoes();
-
-    pontuacao++;
 }
 
 // =====================================================
@@ -370,6 +413,7 @@ function desenharFundo() {
     gradiente.addColorStop(1, "#ffffff");
 
     ctx.fillStyle = gradiente;
+
     ctx.fillRect(
         0,
         0,
@@ -464,14 +508,13 @@ function desenharPassaro() {
     let inclinacao = 0;
 
     if (!passaro.noChao) {
-        inclinacao =
-            Math.max(
-                -0.18,
-                Math.min(
-                    0.18,
-                    passaro.velocidadeY * 0.015
-                )
-            );
+        inclinacao = Math.max(
+            -0.18,
+            Math.min(
+                0.18,
+                passaro.velocidadeY * 0.015
+            )
+        );
     }
 
     ctx.rotate(inclinacao);
@@ -504,7 +547,7 @@ function desenharPainelSuperior() {
     ctx.fillRect(
         12,
         12,
-        230,
+        315,
         46
     );
 
@@ -514,26 +557,31 @@ function desenharPainelSuperior() {
     ctx.strokeRect(
         12,
         12,
-        230,
+        315,
         46
     );
 
     ctx.fillStyle = "#17283b";
     ctx.textAlign = "left";
-    ctx.font = "bold 19px Arial";
+    ctx.font = "bold 18px Arial";
 
     ctx.fillText(
-        "Pontos: " +
-        Math.floor(pontuacao / 10),
+        "Pontos: " + Math.floor(pontuacao / 10),
         25,
         41
     );
 
-    ctx.font = "16px Arial";
+    ctx.font = "15px Arial";
 
     ctx.fillText(
         "Recorde: " + recorde,
-        135,
+        140,
+        40
+    );
+
+    ctx.fillText(
+        "Velocidade: " + velocidadeJogo.toFixed(1),
+        225,
         40
     );
 }
@@ -603,8 +651,7 @@ function desenharBotaoPausa() {
 
     ctx.fillText(
         texto,
-        botaoPausa.x +
-        botaoPausa.largura / 2,
+        botaoPausa.x + botaoPausa.largura / 2,
         botaoPausa.y + 23
     );
 }
@@ -631,7 +678,6 @@ function desenharMenu() {
 
     ctx.fillStyle = "#1255ae";
     ctx.textAlign = "center";
-
     ctx.font = "bold 42px Arial";
 
     ctx.fillText(
@@ -652,7 +698,7 @@ function desenharMenu() {
     ctx.font = "16px Arial";
 
     ctx.fillText(
-        "Espaço: pular  •  P: pausar",
+        "O jogo fica mais rápido gradualmente",
         canvas.width / 2,
         150
     );
@@ -724,8 +770,7 @@ function desenharGameOver() {
     ctx.font = "22px Arial";
 
     ctx.fillText(
-        "Pontuação: " +
-        Math.floor(pontuacao / 10),
+        "Pontuação: " + Math.floor(pontuacao / 10),
         canvas.width / 2,
         125
     );
