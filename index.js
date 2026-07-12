@@ -26,11 +26,11 @@ let nuvens = [];
 let tempoParaPedra = 80;
 let tempoParaNuvem = 20;
 
-// Velocidade geral do jogo
-let velocidadeJogo = 6;
-
+// Velocidade geral
 const velocidadeInicial = 6;
 const velocidadeMaxima = 14;
+
+let velocidadeJogo = velocidadeInicial;
 
 const chaoY = canvas.height - 28;
 
@@ -45,9 +45,9 @@ const passaro = {
     largura: 100,
     altura: 52,
 
-    velocidadeY: 3,
+    velocidadeY: 0,
     gravidade: 0.5,
-    forcaDoPulo: -12,
+    forcaDoPulo: -11,
 
     noChao: true
 };
@@ -113,7 +113,6 @@ function criarNuvem() {
         largura: grande ? 70 : 45,
         altura: grande ? 34 : 22,
 
-        // Cada nuvem tem uma pequena variação própria
         multiplicadorVelocidade: 0.08 + Math.random() * 0.08
     });
 }
@@ -246,23 +245,11 @@ function encerrarJogo() {
 }
 
 // =====================================================
-// ATUALIZAÇÃO DA VELOCIDADE
+// VELOCIDADE
 // =====================================================
 
 function atualizarVelocidade() {
     const pontosAtuais = pontuacao / 10;
-
-    /*
-        A velocidade aumenta 1 ponto
-        a cada 100 pontos do jogador.
-
-        0 pontos    = velocidade 6
-        100 pontos  = velocidade 7
-        200 pontos  = velocidade 8
-        300 pontos  = velocidade 9
-        ...
-        máximo      = velocidade 14
-    */
 
     velocidadeJogo =
         velocidadeInicial + pontosAtuais / 100;
@@ -301,10 +288,6 @@ function atualizarPedras() {
     if (tempoParaPedra <= 0) {
         criarPedra();
 
-        /*
-            Mantém um espaço razoável entre as pedras,
-            mesmo quando o jogo fica mais rápido.
-        */
         tempoParaPedra =
             95 + Math.random() * 75;
     }
@@ -360,12 +343,14 @@ function verificarColisoes() {
         margemPassaroY;
 
     for (const pedra of pedras) {
-        const pedraEsquerda = pedra.x + 7;
+        const pedraEsquerda =
+            pedra.x + 7;
 
         const pedraDireita =
             pedra.x + pedra.largura - 7;
 
-        const pedraTopo = pedra.y + 4;
+        const pedraTopo =
+            pedra.y + 4;
 
         const pedraBase =
             pedra.y + pedra.altura;
@@ -398,7 +383,7 @@ function atualizar() {
 }
 
 // =====================================================
-// DESENHOS DO JOGO
+// DESENHO DO CENÁRIO
 // =====================================================
 
 function desenharFundo() {
@@ -538,53 +523,65 @@ function desenharPassaro() {
 }
 
 // =====================================================
-// INTERFACE
+// INTERFACE SUPERIOR
 // =====================================================
 
 function desenharPainelSuperior() {
-    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+    const painelX = 12;
+    const painelY = 12;
+    const painelLargura = 430;
+    const painelAltura = 46;
+
+    ctx.fillStyle =
+        "rgba(255, 255, 255, 0.82)";
 
     ctx.fillRect(
-        12,
-        12,
-        315,
-        46
+        painelX,
+        painelY,
+        painelLargura,
+        painelAltura
     );
 
     ctx.strokeStyle = "#1e3550";
     ctx.lineWidth = 2;
 
     ctx.strokeRect(
-        12,
-        12,
-        315,
-        46
+        painelX,
+        painelY,
+        painelLargura,
+        painelAltura
     );
 
     ctx.fillStyle = "#17283b";
     ctx.textAlign = "left";
-    ctx.font = "bold 18px Arial";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 15px Arial";
 
     ctx.fillText(
         "Pontos: " + Math.floor(pontuacao / 10),
         25,
-        41
+        35
     );
-
-    ctx.font = "15px Arial";
 
     ctx.fillText(
         "Recorde: " + recorde,
-        140,
-        40
+        155,
+        35
     );
 
     ctx.fillText(
-        "Velocidade: " + velocidadeJogo.toFixed(1),
-        225,
-        40
+        "Velocidade: " +
+        velocidadeJogo.toFixed(1),
+        285,
+        35
     );
+
+    ctx.textBaseline = "alphabetic";
 }
+
+// =====================================================
+// BOTÕES
+// =====================================================
 
 function desenharBotao(botao, texto) {
     ctx.fillStyle = "#195dba";
@@ -621,7 +618,8 @@ function desenharBotao(botao, texto) {
 }
 
 function desenharBotaoPausa() {
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillStyle =
+        "rgba(255,255,255,0.85)";
 
     ctx.fillRect(
         botaoPausa.x,
@@ -641,7 +639,7 @@ function desenharBotaoPausa() {
     );
 
     ctx.fillStyle = "#17283b";
-    ctx.font = "bold 15px Arial";
+    ctx.font = "bold 14px Arial";
     ctx.textAlign = "center";
 
     const texto =
@@ -651,13 +649,19 @@ function desenharBotaoPausa() {
 
     ctx.fillText(
         texto,
-        botaoPausa.x + botaoPausa.largura / 2,
+        botaoPausa.x +
+        botaoPausa.largura / 2,
         botaoPausa.y + 23
     );
 }
 
+// =====================================================
+// MENU
+// =====================================================
+
 function desenharMenu() {
-    ctx.fillStyle = "rgba(255,255,255,0.82)";
+    ctx.fillStyle =
+        "rgba(255,255,255,0.82)";
 
     ctx.fillRect(
         130,
@@ -698,7 +702,7 @@ function desenharMenu() {
     ctx.font = "16px Arial";
 
     ctx.fillText(
-        "O jogo fica mais rápido gradualmente",
+        "A velocidade aumenta durante a partida",
         canvas.width / 2,
         150
     );
@@ -718,8 +722,13 @@ function desenharMenu() {
     );
 }
 
+// =====================================================
+// PAUSA
+// =====================================================
+
 function desenharPausa() {
-    ctx.fillStyle = "rgba(10, 20, 35, 0.62)";
+    ctx.fillStyle =
+        "rgba(10, 20, 35, 0.62)";
 
     ctx.fillRect(
         0,
@@ -747,8 +756,13 @@ function desenharPausa() {
     );
 }
 
+// =====================================================
+// GAME OVER
+// =====================================================
+
 function desenharGameOver() {
-    ctx.fillStyle = "rgba(10, 20, 35, 0.72)";
+    ctx.fillStyle =
+        "rgba(10, 20, 35, 0.72)";
 
     ctx.fillRect(
         0,
@@ -770,7 +784,8 @@ function desenharGameOver() {
     ctx.font = "22px Arial";
 
     ctx.fillText(
-        "Pontuação: " + Math.floor(pontuacao / 10),
+        "Pontuação: " +
+        Math.floor(pontuacao / 10),
         canvas.width / 2,
         125
     );
@@ -829,7 +844,7 @@ function desenhar() {
 }
 
 // =====================================================
-// LOOP
+// LOOP PRINCIPAL
 // =====================================================
 
 function loopDoJogo() {
